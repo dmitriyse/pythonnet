@@ -13,6 +13,8 @@ using System.Text;
 
 namespace Python.Runtime
 {
+    using System.Linq;
+
     [SuppressUnmanagedCodeSecurityAttribute()]
     static class NativeMethods
     {
@@ -711,10 +713,44 @@ namespace Python.Runtime
             PyGILState_GetThisThreadState();
 
 #if (PYTHON32 || PYTHON33 || PYTHON34 || PYTHON35)
+#if (UCS4)
+        [DllImport(Runtime.dll, CallingConvention = CallingConvention.Cdecl, 
+            ExactSpelling = true, CharSet = CharSet.Ansi)]
+        private unsafe static extern int
+        Py_Main(int argc, [MarshalAsAttribute(UnmanagedType.LPArray)] IntPtr lplpargv);
+
+        public unsafe static int Py_Main(int argc, string[] argv)
+        {
+            // Totally ignoring argc.
+            argc = argv.Length;
+
+            int allStringsLength = argv.Sum(x => x.Length + 1);
+            int requiredSize = IntPtr.Size * argc + allStringsLength * 4;
+            IntPtr mem = Marshal.AllocHGlobal(requiredSize);
+            try
+            {
+                // Preparing array of pointers to UTF32 strings.
+                IntPtr curStrPtr = mem + argc*IntPtr.Size;
+                for (int i = 0; i < argv.Length; i++)
+                {
+                    byte[] utf32zstr = Encoding.UTF32.GetBytes(argv[i] + "\0");
+                    Marshal.Copy(utf32zstr, 0, curStrPtr, utf32zstr.Length);
+                    Marshal.WriteIntPtr(mem + IntPtr.Size*i, curStrPtr);
+                    curStrPtr += utf32zstr.Length;
+                }
+                return Py_Main(argc, mem);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(mem);
+            }
+        }
+#else
     [DllImport(Runtime.dll, CallingConvention=CallingConvention.Cdecl,
         ExactSpelling=true, CharSet=CharSet.Ansi)]
     public unsafe static extern int
     Py_Main(int argc, [MarshalAsAttribute(UnmanagedType.LPArray, ArraySubType=UnmanagedType.LPWStr)] string[] argv);
+#endif
 #else
         [DllImport(Runtime.dll, CallingConvention = CallingConvention.Cdecl,
             ExactSpelling = true, CharSet = CharSet.Ansi)]
