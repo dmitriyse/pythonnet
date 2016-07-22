@@ -116,6 +116,12 @@ namespace Python.Runtime
         {
             if (!initialized)
             {
+                var configException = AppDomain.CurrentDomain.GetData("PythonConfigException") as Exception;
+                if (configException != null)
+                {
+                    throw configException;
+                }
+
                 // Creating the delegateManager MUST happen before Runtime.Initialize
                 // is called. If it happens afterwards, DelegateManager's CodeGenerator
                 // throws an exception in its ctor.  This exception is eaten somehow
