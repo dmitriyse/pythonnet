@@ -1,5 +1,7 @@
 ﻿namespace Python.Bootstrapper.Test
 {
+    using System;
+
     using FluentAssertions;
 
     using NUnit.Framework;
@@ -11,7 +13,8 @@
         [Ignore("For debug")]
         public void DetectRequiredRuntimeDllTest()
         {
-            var dll = PythonRuntimeBootstrapper.DetectRequiredPythonRuntimDll();
+            string os;
+            var dll = PythonRuntimeBootstrapper.DetectRequiredPythonRuntimDll(out os);
             dll.Should().Be("Python.Runtime-win-64-ucs2.dll");
         }
 
@@ -24,6 +27,12 @@
 
             dllContent = PythonRuntimeBootstrapper.LoadRequiredAssembly("SomeNonZipFile.txt");
             dllContent.Length.Should().BePositive();
+        }
+
+        [Test]
+        public void UpdateLdLibraryPathTest()
+        {
+            PythonRuntimeBootstrapper.ExtendLinuxLibraryPath();
         }
     }
 }
