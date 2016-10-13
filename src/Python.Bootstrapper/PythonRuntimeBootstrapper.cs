@@ -68,7 +68,7 @@
                                                         {
                                                             FileName = "python",
                                                             Arguments =
-                                                                @"-c ""import sys; print(sys.version_info.major); print(sys.version_info.minor); import array; print(array.array('u').itemsize); import platform; print(platform.architecture()[0]); print(platform.architecture()[1]); import sysconfig; print(sysconfig.get_config_vars('WITH_PYMALLOC'))"";print(sysconfig.get_config_var('LIBPL'));print(sysconfig.get_config_var('LIBDIR'))",
+                                                                @"-c ""import sys; print(sys.version_info.major); print(sys.version_info.minor); import array; print(array.array('u').itemsize); import platform; print(platform.architecture()[0]); print(platform.architecture()[1]); import sysconfig; print(sysconfig.get_config_vars('WITH_PYMALLOC'))""",
                                                             UseShellExecute = false,
                                                             RedirectStandardOutput = true,
                                                             RedirectStandardError = true,
