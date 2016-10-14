@@ -12,7 +12,11 @@
     /// </summary>
     public static class PythonRuntimeBootstrapper
     {
-        private static byte[] _pythonRuntimeAssembly;
+        private static readonly object PythonRuntimeAssemblyLock = new object();
+
+        private static Assembly _pythonRuntimeAssembly;
+
+        private static byte[] _pythonRuntimeAssemblyContent;
 
         /// <summary>
         /// Register loader for correct python.runtime.dll (according to OS, python version, python build options, etc.).
@@ -40,7 +44,7 @@
 
             try
             {
-                _pythonRuntimeAssembly = LoadRequiredAssembly(dllName);
+                _pythonRuntimeAssemblyContent = LoadRequiredAssembly(dllName);
             }
             catch (Exception ex)
             {
@@ -270,7 +274,15 @@
         {
             if (args.Name.StartsWith("Python.Runtime"))
             {
-                return Assembly.Load(_pythonRuntimeAssembly);
+                lock (PythonRuntimeAssemblyLock)
+                {
+                    if (_pythonRuntimeAssembly == null)
+                    {
+                        _pythonRuntimeAssembly = Assembly.Load(_pythonRuntimeAssemblyContent);
+                    }
+
+                    return _pythonRuntimeAssembly;
+                }
             }
 
             return null;
