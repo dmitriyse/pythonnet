@@ -37,18 +37,6 @@
                             Console.WriteLine("Python engine version:");
                             Console.WriteLine(sysModule.version);
                         }
-
-                        // This workaround reduces risk of Mono crash.
-                        // Problem will be fixed in mono 4.6
-                        if (Path.DirectorySeparatorChar == '/' || Type.GetType("Mono.Runtime") != null)
-                        {
-                            Runtime.Py_Main(3, new[] { "/pcfgtest.exe", "-c", "exit" });
-                        }
-                        else
-                        {
-                            // Program will crash if we will try to do this under Windows.
-                            //// Runtime.Py_Main(3, new[] { "/pcfgtest.exe", "-c", "exit" });
-                        }
                     }
                     finally
                     {

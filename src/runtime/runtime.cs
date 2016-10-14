@@ -412,6 +412,19 @@ namespace Python.Runtime
 
         internal static void Shutdown()
         {
+            // This workaround reduces risk of Mono or Linux crash.
+            // Problem probably will be fixed in mono 4.6
+            if (Path.DirectorySeparatorChar == '/' || Type.GetType("Mono.Runtime") != null)
+            {
+                Runtime.Py_Main(3, new[] { "/some.exe", "-c", "exit" });
+            }
+            else
+            {
+                // else
+                // Program will crash if we will try to do this under Windows.
+                //// Runtime.Py_Main(3, new[] { "/some.exe", "-c", "exit" });
+            }
+
             AssemblyManager.Shutdown();
             Exceptions.Shutdown();
             ImportHook.Shutdown();
