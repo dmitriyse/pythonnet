@@ -109,8 +109,8 @@
             {
                 throw new InvalidOperationException("Failed to execute python");
             }
-
-            var result = stdOut.Split('\n');
+            
+            var result = NormalizeOutput(stdOut).Split('\n');
             int majorVersion;
             int minorVersion;
             int charSize;
@@ -166,7 +166,7 @@
             }
 
             librariesPathElements = new List<string>();
-            for (int i = 0; i < result.Length; i++)
+            for (int i = 6; i < 8; i++)
             {
                 var libPathElement = result[i].Trim();
                 if (libPathElement != "None" && libPathElement != string.Empty)
