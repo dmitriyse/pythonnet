@@ -40,7 +40,8 @@
             EnsurePythonRuntimeDllNotInBin();
 
             string os;
-            string dllName = DetectRequiredPythonRuntimDll(out os);
+            List<string> libraryPathes;
+            string dllName = DetectRequiredPythonRuntimDll(out os, out libraryPathes);
 
             try
             {
@@ -59,18 +60,31 @@
 
             if (os == "elf")
             {
-                MakeLibSymLink(pythonRuntimeType);
+                MakeLibSymLink(pythonRuntimeType, libraryPathes);
             }
 
             return dllName;
         }
 
-        /// <summary>
-        /// Detects required runtime assembly file name.
-        /// </summary>
-        /// <param name="os">Detected os version.</param>
-        /// <returns>Name of required runtime assembly file name.</returns>
-        internal static string DetectRequiredPythonRuntimDll(out string os)
+        private static Assembly AssemblyResolveHandler(object sender, ResolveEventArgs args)
+        {
+            if (args.Name.StartsWith("Python.Runtime"))
+            {
+                lock (PythonRuntimeAssemblyLock)
+                {
+                    if (_pythonRuntimeAssembly == null)
+                    {
+                        _pythonRuntimeAssembly = Assembly.Load(_pythonRuntimeAssemblyContent);
+                    }
+
+                    return _pythonRuntimeAssembly;
+                }
+            }
+
+            return null;
+        }
+
+        private static string DetectRequiredPythonRuntimDll(out string os, out List<string> librariesPathElements)
         {
             string stdOut;
             string stdErr;
@@ -83,7 +97,7 @@
                                                         {
                                                             FileName = "python",
                                                             Arguments =
-                                                                @"-c ""import sys; print(sys.version_info.major); print(sys.version_info.minor); import array; print(array.array('u').itemsize); import platform; print(platform.architecture()[0]); print(platform.architecture()[1]); import sysconfig; print(sysconfig.get_config_vars('WITH_PYMALLOC'))""",
+                                                                @"-c ""import sys; print(sys.version_info.major); print(sys.version_info.minor); import array; print(array.array('u').itemsize); import platform; print(platform.architecture()[0]); print(platform.architecture()[1]); import sysconfig; print(sysconfig.get_config_vars('WITH_PYMALLOC')); print(sysconfig.get_config_var('LIBPL'));print(sysconfig.get_config_var('LIBDIR'))""",
                                                             UseShellExecute = false,
                                                             RedirectStandardOutput = true,
                                                             RedirectStandardError = true,
@@ -111,7 +125,7 @@
             int charSize;
             bool pyMalloc = false;
 
-            if (result.Length == 6)
+            if (result.Length == 8)
             {
                 if (int.TryParse(result[0], out majorVersion) && int.TryParse(result[1], out minorVersion)
                     && int.TryParse(result[2], out charSize))
@@ -160,6 +174,16 @@
                 options += "m";
             }
 
+            librariesPathElements = new List<string>();
+            for (int i = 0; i < result.Length; i++)
+            {
+                var libPathElement = result[i].Trim();
+                if (libPathElement != "None" && libPathElement != string.Empty)
+                {
+                    librariesPathElements.Add(libPathElement);
+                }
+            }
+
             string dllName = "Python.Runtime";
             dllName += "-" + os;
             dllName += "-" + result[3].Substring(0, 2);
@@ -171,12 +195,21 @@
             return dllName;
         }
 
+        private static void EnsurePythonRuntimeDllNotInBin()
+        {
+            if (File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.dll")))
+            {
+                throw new InvalidDataException(
+                          "Python.Runtime.dll found in the application directory. It's not supported and will cause Python.Net library crash.");
+            }
+        }
+
         /// <summary>
         /// Loads content of required assembly.
         /// </summary>
         /// <param name="requiredAssemblyName">Required assembly file name.</param>
         /// <returns>Assembly file content.</returns>
-        internal static byte[] LoadRequiredAssembly(string requiredAssemblyName)
+        private static byte[] LoadRequiredAssembly(string requiredAssemblyName)
         {
             var fullRequiredAssemblyName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, requiredAssemblyName);
             if (File.Exists(fullRequiredAssemblyName))
@@ -207,94 +240,13 @@
             }
         }
 
-        /// <summary>
-        /// Adds required python libraries pathes to LD_LIBRARY_PATH variable.
-        /// </summary>
-        internal static void MakeLibSymLink(Type pythonLoaderType)
+        private static void MakeLibSymLink(Type pythonLoaderType, List<string> librariesPathElements)
         {
-            string stdOut;
-            string stdErr;
-            try
-            {
-                var pythonTestProcess = new Process
-                                            {
-                                                StartInfo =
-                                                    new ProcessStartInfo
-                                                        {
-                                                            FileName = "python",
-                                                            Arguments =
-                                                                @"-c ""import sysconfig; print(sysconfig.get_config_var('LIBPL'));print(sysconfig.get_config_var('LIBDIR'))""",
-                                                            UseShellExecute = false,
-                                                            RedirectStandardOutput = true,
-                                                            RedirectStandardError = true,
-                                                            RedirectStandardInput = true
-                                                        }
-                                            };
-                pythonTestProcess.Start();
-                pythonTestProcess.WaitForExit();
-                stdOut = NormalizeOutput(pythonTestProcess.StandardOutput.ReadToEnd());
-                stdErr = NormalizeOutput(pythonTestProcess.StandardError.ReadToEnd());
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Error launching python: {ex.Message}");
-            }
+            var makeSymLinkLibMethodInfo = pythonLoaderType.GetMethod(
+                "MakeLibSymLink",
+                BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
 
-            if (!string.IsNullOrEmpty(stdErr))
-            {
-                throw new InvalidOperationException($"Failed to extract information about python: {stdErr}");
-            }
-
-            var result = stdOut.Split('\n');
-            if (result.Length == 2)
-            {
-                var librariesPathElements = new List<string>();
-                for (int i = 0; i < result.Length; i++)
-                {
-                    var libPathElement = result[i].Trim();
-                    if (libPathElement != "None" && libPathElement != string.Empty)
-                    {
-                        librariesPathElements.Add(libPathElement);
-                    }
-                }
-
-                var makeSymLinkLibMethodInfo = pythonLoaderType.GetMethod(
-                    "MakeLibSymLink",
-                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-
-                makeSymLinkLibMethodInfo.Invoke(null, new object[] { librariesPathElements });
-            }
-            else
-            {
-                throw new InvalidOperationException("Failed to extract information about python.");
-            }
-        }
-
-        private static Assembly AssemblyResolveHandler(object sender, ResolveEventArgs args)
-        {
-            if (args.Name.StartsWith("Python.Runtime"))
-            {
-                lock (PythonRuntimeAssemblyLock)
-                {
-                    if (_pythonRuntimeAssembly == null)
-                    {
-                        _pythonRuntimeAssembly = Assembly.Load(_pythonRuntimeAssemblyContent);
-                    }
-
-                    return _pythonRuntimeAssembly;
-                }
-            }
-
-            return null;
-        }
-
-        private static void EnsurePythonRuntimeDllNotInBin()
-        {
-            if (File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.dll")))
-            {
-                throw new InvalidDataException(
-                          "Python.Runtime.dll found in the application directory. It's not supported and will cause Python.Net library crash.");
-            }
+            makeSymLinkLibMethodInfo.Invoke(null, new object[] { librariesPathElements });
         }
 
         private static string NormalizeOutput(string str)
