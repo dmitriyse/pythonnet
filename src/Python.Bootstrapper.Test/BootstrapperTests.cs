@@ -28,11 +28,5 @@
             dllContent = PythonRuntimeBootstrapper.LoadRequiredAssembly("SomeNonZipFile.txt");
             dllContent.Length.Should().BePositive();
         }
-
-        [Test]
-        public void UpdateLdLibraryPathTest()
-        {
-            PythonRuntimeBootstrapper.ExtendLinuxLibraryPath();
-        }
     }
 }
