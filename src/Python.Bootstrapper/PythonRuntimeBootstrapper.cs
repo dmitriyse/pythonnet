@@ -5,7 +5,6 @@
     using System.Diagnostics;
     using System.IO;
     using System.IO.Compression;
-    using System.Linq;
     using System.Reflection;
 
     /// <summary>
@@ -18,13 +17,24 @@
         /// <summary>
         /// Register loader for correct python.runtime.dll (according to OS, python version, python build options, etc.).
         /// </summary>
+        /// <param name="allowDeleteDefaultLib">Allow to delete Python.Runtime.dll from bin dir to avoid wrong runtime load by CLR.</param>
         /// <exception cref="InvalidDataException">Python.runtime.dll found in the bin directory.</exception>
         /// <exception cref="InvalidOperationException">Python detection error.</exception>
         /// <exception cref="FileNotFoundException">Error loading file for the detected python.</exception>
         /// <returns>Strict dll name required for detected python.</returns>
-        public static string DetectPythonAndRegisterRuntime()
+        public static string DetectPythonAndRegisterRuntime(bool allowDeleteDefaultLib = false)
         {
+            if (allowDeleteDefaultLib)
+            {
+                var defaultLibFullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.dll");
+                if (File.Exists(defaultLibFullPath))
+                {
+                    File.Delete(defaultLibFullPath);
+                }
+            }
+
             EnsurePythonRuntimeDllNotInBin();
+
             string os;
             string dllName = DetectRequiredPythonRuntimDll(out os);
 
@@ -36,7 +46,6 @@
             {
                 throw new FileNotFoundException($"Error loading {dllName} from Python.Runtime.zip: {ex.Message}");
             }
-
 
             AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolveHandler;
             var pythonRuntimeType =
@@ -159,6 +168,42 @@
         }
 
         /// <summary>
+        /// Loads content of required assembly.
+        /// </summary>
+        /// <param name="requiredAssemblyName">Required assembly file name.</param>
+        /// <returns>Assembly file content.</returns>
+        internal static byte[] LoadRequiredAssembly(string requiredAssemblyName)
+        {
+            var fullRequiredAssemblyName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, requiredAssemblyName);
+            if (File.Exists(fullRequiredAssemblyName))
+            {
+                return File.ReadAllBytes(fullRequiredAssemblyName);
+            }
+
+            using (
+                var archive =
+                    new ZipArchive(
+                        new FileStream(
+                            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.zip"),
+                            FileMode.Open),
+                        ZipArchiveMode.Read))
+            {
+                var entry = archive.GetEntry(requiredAssemblyName);
+                if (entry == null)
+                {
+                    throw new FileNotFoundException($"Cannot find file {requiredAssemblyName} the zip archive.");
+                }
+
+                using (var zipStream = entry.Open())
+                {
+                    var memStream = new MemoryStream();
+                    zipStream.CopyTo(memStream);
+                    return memStream.ToArray();
+                }
+            }
+        }
+
+        /// <summary>
         /// Adds required python libraries pathes to LD_LIBRARY_PATH variable.
         /// </summary>
         internal static void MakeLibSymLink(Type pythonLoaderType)
@@ -218,42 +263,6 @@
             else
             {
                 throw new InvalidOperationException("Failed to extract information about python.");
-            }
-        }
-
-        /// <summary>
-        /// Loads content of required assembly.
-        /// </summary>
-        /// <param name="requiredAssemblyName">Required assembly file name.</param>
-        /// <returns>Assembly file content.</returns>
-        internal static byte[] LoadRequiredAssembly(string requiredAssemblyName)
-        {
-            var fullRequiredAssemblyName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, requiredAssemblyName);
-            if (File.Exists(fullRequiredAssemblyName))
-            {
-                return File.ReadAllBytes(fullRequiredAssemblyName);
-            }
-
-            using (
-                var archive =
-                    new ZipArchive(
-                        new FileStream(
-                            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.zip"),
-                            FileMode.Open),
-                        ZipArchiveMode.Read))
-            {
-                var entry = archive.GetEntry(requiredAssemblyName);
-                if (entry == null)
-                {
-                    throw new FileNotFoundException($"Cannot find file {requiredAssemblyName} the zip archive.");
-                }
-
-                using (var zipStream = entry.Open())
-                {
-                    var memStream = new MemoryStream();
-                    zipStream.CopyTo(memStream);
-                    return memStream.ToArray();
-                }
             }
         }
 
