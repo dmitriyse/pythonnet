@@ -15,7 +15,7 @@
         {
             string os;
             var dll = PythonRuntimeBootstrapper.DetectRequiredPythonRuntimDll(out os);
-            dll.Should().Be("Python.Runtime-win-64-ucs2.dll");
+            dll.Should().Be("Python.Runtime-win-64-ucs2-35.dll");
         }
 
         [Test]
