@@ -5,6 +5,7 @@
     using System.Diagnostics;
     using System.IO;
     using System.IO.Compression;
+    using System.Linq;
     using System.Reflection;
 
     /// <summary>
@@ -36,16 +37,17 @@
                 throw new FileNotFoundException($"Error loading {dllName} from Python.Runtime.zip: {ex.Message}");
             }
 
-            if (os == "elf")
-            {
-                ExtendLinuxLibraryPath();
-            }
 
             AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolveHandler;
             var pythonRuntimeType =
                 Type.GetType(
                     "Python.Runtime.Runtime, Python.Runtime, Version=4.0.0.1, Culture=neutral, PublicKeyToken=null",
                     true);
+
+            if (os == "elf")
+            {
+                MakeLibSymLink(pythonRuntimeType);
+            }
 
             return dllName;
         }
@@ -159,7 +161,7 @@
         /// <summary>
         /// Adds required python libraries pathes to LD_LIBRARY_PATH variable.
         /// </summary>
-        internal static void ExtendLinuxLibraryPath()
+        internal static void MakeLibSymLink(Type pythonLoaderType)
         {
             string stdOut;
             string stdErr;
@@ -197,7 +199,6 @@
             var result = stdOut.Split('\n');
             if (result.Length == 2)
             {
-                string librariesPath = (Environment.GetEnvironmentVariable("LD_LIBRARY_PATH") ?? string.Empty).Trim();
                 var librariesPathElements = new List<string>();
                 for (int i = 0; i < result.Length; i++)
                 {
@@ -208,16 +209,11 @@
                     }
                 }
 
-                if (librariesPath != string.Empty)
-                {
-                    librariesPathElements.Add(librariesPath);
-                }
+                var makeSymLinkLibMethodInfo = pythonLoaderType.GetMethod(
+                    "MakeLibSymLink",
+                    BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
 
-                librariesPath = string.Join(":", librariesPathElements);
-                if (librariesPath != string.Empty)
-                {
-                    Environment.SetEnvironmentVariable("LD_LIBRARY_PATH", librariesPath);
-                }
+                makeSymLinkLibMethodInfo.Invoke(null, new object[] { librariesPathElements });
             }
             else
             {

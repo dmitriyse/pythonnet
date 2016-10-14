@@ -13,6 +13,8 @@ using System.Text;
 
 namespace Python.Runtime
 {
+    using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
 
     [SuppressUnmanagedCodeSecurityAttribute()]
@@ -217,6 +219,45 @@ namespace Python.Runtime
         internal static bool wrap_exceptions;
         internal static bool is32bit;
 
+#if MONO_LINUX
+        internal static void MakeLibSymLink(List<string> seachPathes)
+        {
+            try
+            {
+                string foundLibFullPath = null;
+                foreach (var seachPath in seachPathes)
+                {
+                    var pathToTest = Path.Combine(seachPath, $"lib{dll}.so");
+                    if (File.Exists(pathToTest))
+                    {
+                        foundLibFullPath = pathToTest;
+                        break;
+                    }
+                }
+
+                if (foundLibFullPath != null)
+                {
+                    var localLibFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"lib{dll}.so");
+                    if (File.Exists(localLibFile))
+                    {
+                        File.Delete(localLibFile);
+                    }
+
+                    UnixFileInfo libFileInfo = new UnixFileInfo(foundLibFullPath);
+                    libFileInfo.CreateSymbolicLink(localLibFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                // do nothing.
+            }
+        }
+#else
+        internal static void MakeLibSymLink(List<string> seachPathes)
+        {
+            throw new NotSupportedException("Sym Link patch only required on linux platform.");
+        }
+#endif
         /// <summary>
         /// Intitialize the runtime...
         /// </summary>
