@@ -116,7 +116,7 @@
             int charSize;
             bool pyMalloc = false;
 
-            if (result.Length == 8)
+            if (result.Length >= 8)
             {
                 if (int.TryParse(result[0], out majorVersion) && int.TryParse(result[1], out minorVersion)
                     && int.TryParse(result[2], out charSize))
