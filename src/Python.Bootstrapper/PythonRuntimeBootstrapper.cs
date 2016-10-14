@@ -2,10 +2,11 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.IO;
     using System.IO.Compression;
     using System.Reflection;
+
+    using Mono.Unix.Native;
 
     /// <summary>
     /// Bootstrapper for python.runtime.dll library.
@@ -87,36 +88,26 @@
         private static string DetectRequiredPythonRuntimDll(out string os, out List<string> librariesPathElements)
         {
             string stdOut;
-            string stdErr;
-            try
-            {
-                var pythonTestProcess = new Process
-                                            {
-                                                StartInfo =
-                                                    new ProcessStartInfo
-                                                        {
-                                                            FileName = "python",
-                                                            Arguments =
-                                                                @"-c ""import sys; print(sys.version_info.major); print(sys.version_info.minor); import array; print(array.array('u').itemsize); import platform; print(platform.architecture()[0]); print(platform.architecture()[1]); import sysconfig; print(sysconfig.get_config_vars('WITH_PYMALLOC')); print(sysconfig.get_config_var('LIBPL'));print(sysconfig.get_config_var('LIBDIR'))""",
-                                                            UseShellExecute = false,
-                                                            RedirectStandardOutput = true,
-                                                            RedirectStandardError = true,
-                                                            RedirectStandardInput = true
-                                                        }
-                                            };
-                pythonTestProcess.Start();
-                pythonTestProcess.WaitForExit();
-                stdOut = NormalizeOutput(pythonTestProcess.StandardOutput.ReadToEnd());
-                stdErr = NormalizeOutput(pythonTestProcess.StandardError.ReadToEnd());
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Error launching python: {ex.Message}");
-            }
+            string pythonInfoFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "python-info.tmp");
 
-            if (!string.IsNullOrEmpty(stdErr))
+            if (0
+                == Stdlib.system(
+                    $@"python -c ""import sys; print(sys.version_info.major); print(sys.version_info.minor); import array; print(array.array('u').itemsize); import platform; print(platform.architecture()[0]); print(platform.architecture()[1]); import sysconfig; print(sysconfig.get_config_vars('WITH_PYMALLOC')); print(sysconfig.get_config_var('LIBPL'));print(sysconfig.get_config_var('LIBDIR'))"" > {pythonInfoFile}"))
             {
-                throw new InvalidOperationException($"Failed to extract information about python: {stdErr}");
+                if (File.Exists(pythonInfoFile))
+                {
+                    stdOut = File.ReadAllText(pythonInfoFile);
+
+                    File.Delete(pythonInfoFile);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Failed to execute python");
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("Failed to execute python");
             }
 
             var result = stdOut.Split('\n');
