@@ -150,68 +150,10 @@
             dllName += "-" + result[3].Substring(0, 2);
             dllName += "-ucs" + charSize;
 
-            if (options != string.Empty)
-            {
-                dllName += "-" + options;
-            }
+            dllName += "-" + result[0] + result[1] + options;
 
             dllName += ".dll";
             return dllName;
-        }
-
-        /// <summary>
-        /// Loads content of required assembly.
-        /// </summary>
-        /// <param name="requiredAssemblyName">Required assembly file name.</param>
-        /// <returns>Assembly file content.</returns>
-        internal static byte[] LoadRequiredAssembly(string requiredAssemblyName)
-        {
-            var fullRequiredAssemblyName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, requiredAssemblyName);
-            if (File.Exists(fullRequiredAssemblyName))
-            {
-                return File.ReadAllBytes(fullRequiredAssemblyName);
-            }
-
-            using (
-                var archive =
-                    new ZipArchive(
-                        new FileStream(
-                            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.zip"),
-                            FileMode.Open),
-                        ZipArchiveMode.Read))
-            {
-                var entry = archive.GetEntry(requiredAssemblyName);
-                if (entry == null)
-                {
-                    throw new FileNotFoundException($"Cannot find file {requiredAssemblyName} the zip archive.");
-                }
-
-                using (var zipStream = entry.Open())
-                {
-                    var memStream = new MemoryStream();
-                    zipStream.CopyTo(memStream);
-                    return memStream.ToArray();
-                }
-            }
-        }
-
-        private static Assembly AssemblyResolveHandler(object sender, ResolveEventArgs args)
-        {
-            if (args.Name.StartsWith("Python.Runtime"))
-            {
-                return Assembly.Load(_pythonRuntimeAssembly);
-            }
-
-            return null;
-        }
-
-        private static void EnsurePythonRuntimeDllNotInBin()
-        {
-            if (File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.dll")))
-            {
-                throw new InvalidDataException(
-                          "Python.Runtime.dll found in the application directory. It's not supported and will cause Python.Net library crash.");
-            }
         }
 
         /// <summary>
@@ -280,6 +222,61 @@
             else
             {
                 throw new InvalidOperationException("Failed to extract information about python.");
+            }
+        }
+
+        /// <summary>
+        /// Loads content of required assembly.
+        /// </summary>
+        /// <param name="requiredAssemblyName">Required assembly file name.</param>
+        /// <returns>Assembly file content.</returns>
+        internal static byte[] LoadRequiredAssembly(string requiredAssemblyName)
+        {
+            var fullRequiredAssemblyName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, requiredAssemblyName);
+            if (File.Exists(fullRequiredAssemblyName))
+            {
+                return File.ReadAllBytes(fullRequiredAssemblyName);
+            }
+
+            using (
+                var archive =
+                    new ZipArchive(
+                        new FileStream(
+                            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.zip"),
+                            FileMode.Open),
+                        ZipArchiveMode.Read))
+            {
+                var entry = archive.GetEntry(requiredAssemblyName);
+                if (entry == null)
+                {
+                    throw new FileNotFoundException($"Cannot find file {requiredAssemblyName} the zip archive.");
+                }
+
+                using (var zipStream = entry.Open())
+                {
+                    var memStream = new MemoryStream();
+                    zipStream.CopyTo(memStream);
+                    return memStream.ToArray();
+                }
+            }
+        }
+
+        private static Assembly AssemblyResolveHandler(object sender, ResolveEventArgs args)
+        {
+            if (args.Name.StartsWith("Python.Runtime"))
+            {
+                return Assembly.Load(_pythonRuntimeAssembly);
+            }
+
+            return null;
+        }
+
+        private static void EnsurePythonRuntimeDllNotInBin()
+        {
+            if (File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Python.Runtime.dll")))
+            {
+                throw new InvalidDataException(
+                          "Python.Runtime.dll found in the application directory. It's not supported and will cause Python.Net library crash.");
             }
         }
 
