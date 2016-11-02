@@ -4,7 +4,7 @@ using System.Security;
 #if (UCS4)
 using System.Text;
 using Mono.Unix;
-
+using Mono.Unix.Native;
 #endif
 
 #if (UCS2 && (PYTHON32 || PYTHON33 || PYTHON34 || PYTHON35))
@@ -243,8 +243,15 @@ namespace Python.Runtime
                         File.Delete(localLibFile);
                     }
 
-                    UnixFileInfo libFileInfo = new UnixFileInfo(foundLibFullPath);
-                    libFileInfo.CreateSymbolicLink(localLibFile);
+                    int result = Syscall.symlink(foundLibFullPath, localLibFile);
+                    if (result == -1)
+                    {
+                         // do nothing
+                    }
+
+                    // This approach crashes mono. At least it's unsafe to use those methods in AssemblyResolve.
+                    //UnixFileInfo libFileInfo = new UnixFileInfo(foundLibFullPath);
+                    //libFileInfo.CreateSymbolicLink(localLibFile);
                 }
             }
             catch (Exception ex)
@@ -253,7 +260,7 @@ namespace Python.Runtime
             }
         }
 #else
-        internal static void MakeLibSymLink(List<string> seachPathes)
+        static void MakeLibSymLink(List<string> seachPathes)
         {
             throw new NotSupportedException("Sym Link patch only required on linux platform.");
         }
