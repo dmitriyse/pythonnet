@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.5</TargetFramework>
+    <NetStandardImplicitPackageVersion>1.6.1</NetStandardImplicitPackageVersion>
+    <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netstandard1.5' ">$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
+    <RootNamespace>Python.Net</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="pythonnet.py" />
+    <None Remove="pythonnet.tests.py" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="pythonnet.py" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\ClrCoder\src\ClrCoder\ClrCoder.csproj" />
+    <ProjectReference Include="..\runtime\Python.Runtime.15.csproj" />
+  </ItemGroup>
+  
+</Project>
