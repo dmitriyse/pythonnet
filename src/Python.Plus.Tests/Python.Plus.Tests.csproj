@@ -27,4 +27,12 @@
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />
   </ItemGroup>
 
+  <ItemGroup>
+    <NUnitProject Include="$(ProjectDir) $(TargetFramework)">
+      <InProject>false</InProject>
+    </NUnitProject>
+  </ItemGroup>
+  <Target Name="RegisterNUnit" AfterTargets="AfterCompile" Condition="'$(SolutionDir)' != '*Undefined*'">
+    <WriteLinesToFile File="$(SolutionDir)\nunit-list.txt" Lines="@(NUnitProject)" Overwrite="false" />
+  </Target>
 </Project>
