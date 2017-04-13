@@ -10,8 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="FluentAssertions" Version="4.19.2" />
-    <PackageReference Include="NUnit" Version="3.6.1" />
-    <PackageReference Include="NUnitLite" Version="3.6.1" />
+    <PackageReference Include="NUnit" Version="3.7.0-dev-03820" />
+    <PackageReference Include="NUnitLite" Version="3.7.0-dev-03820" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.0.0" />
     <PackageReference Include="Microsoft.TestPlatform.ObjectModel" Version="15.0.0" />
     <PackageReference Include="NUnit3TestAdapter">

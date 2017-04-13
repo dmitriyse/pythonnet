@@ -5,7 +5,6 @@
     using System.Diagnostics;
     using System.IO;
     using System.Reflection;
-    using System.Resources;
     using System.Runtime.CompilerServices;
     using System.Threading;
 
@@ -74,17 +73,19 @@
 
             Log.Debug(_ => _("Python engine initialization started."));
 
-            var pythonetModuleFileName = Path.Combine(EnvironmentEx.BinPath, "pythonnet.py");
+            string pythonetModuleFileName = Path.Combine(EnvironmentEx.BinPath, "pythonnet.py");
+
             // Ensuring that pythonnet.py file exists in the bin directory
             if (!File.Exists(pythonetModuleFileName) || new FileInfo(pythonetModuleFileName).Length == 0)
             {
-                var assembly = typeof(PythonWrapper).GetTypeInfo().Assembly;
+                Assembly assembly = typeof(PythonWrapper).GetTypeInfo().Assembly;
                 using (Stream stream = assembly.GetManifestResourceStream("Python.Net.pythonnet.py"))
                 using (Stream file = File.Create(pythonetModuleFileName))
                 {
                     stream.CopyTo(file);
                 }
             }
+
             using (GIL())
             {
                 _sysModule = SafeLoadModuleInternal("sys", false);
@@ -329,7 +330,7 @@
                     requirePathRegister = !_registeredPathes.Contains(normalizedPath);
                 }
 
-                var cachedModule = _modulesCache.GetOrDefault(moduleName);
+                dynamic cachedModule = _modulesCache.GetOrDefault(moduleName);
                 if (cachedModule != null)
                 {
                     return cachedModule;
@@ -347,15 +348,16 @@
             }
 
             IPythonOutputCapturingFrame outputFrame = null;
+            if (logModuleImport)
+            {
+                outputFrame = PushOutputCapturing();
+            }
+
             try
             {
-                if (logModuleImport)
-                {
-                    outputFrame = PushOutputCapturing();
-                }
+                PyObject module = PythonEngine.ImportModule(moduleName);
 
-                var module = PythonEngine.ImportModule(moduleName);
-
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalse
                 if (module != null)
                 {
                     lock (_instance)
@@ -371,36 +373,25 @@
                             versionStr = module.GetAttr(versionAttribute)?.ToString();
                         }
 
-                        var moduleVersion = versionStr == null ? string.Empty : $", version: {versionStr}";
-                        var stdOut = outputFrame.ReadStdOut();
-                        var stdErr = outputFrame.ReadStdErr();
-                        var stringLogMessage = $"Module {moduleName} loaded{moduleVersion}";
-                        if (!string.IsNullOrWhiteSpace(stdOut))
-                        {
-                            stringLogMessage += $"\nstdout:\n{stdOut}";
-                        }
+                        string moduleVersion = versionStr == null ? string.Empty : $", version: {versionStr}";
+                        string stdOut = outputFrame.ReadStdOut();
+                        string stdErr = outputFrame.ReadStdErr();
+                        string stringLogMessage = $"Module {moduleName} loaded{moduleVersion}";
 
-                        if (!string.IsNullOrWhiteSpace(stdErr))
-                        {
-                            stringLogMessage += $"\nstderr:\n{stdErr}";
-                        }
-
-                        Log.Info(_ => _(stringLogMessage));
+                        Log.Info(_ => _(stringLogMessage).Data(new { PyOut = stdOut, PyErr = stdErr }));
                     }
                 }
                 else
                 {
-                    Log.Warning(moduleName, (_, name) => _($"Failed to load module: {name}"));
 
                     // PythonException internally captures real python module load error.
                     var pythonException = new PythonException();
-
-                    throw new PythonBindingException($"Failed to import python module {moduleName}", pythonException);
+                    throw pythonException;
                 }
 
                 if (ensureMethods != null)
                 {
-                    foreach (var methodName in ensureMethods)
+                    foreach (string methodName in ensureMethods)
                     {
                         if (!module.HasAttr(methodName))
                         {
@@ -411,6 +402,18 @@
                 }
 
                 return module;
+            }
+            catch (PythonException ex)
+            {
+                if (logModuleImport)
+                {
+                    string stdOut = outputFrame.ReadStdOut();
+                    string stdErr = outputFrame.ReadStdErr();
+
+                    Log.Warning(moduleName, (_, name) => _($"Failed to load module: {name}").Data(new { PyOut = stdOut, PyErr = stdErr }));
+                }
+
+                throw new PythonBindingException($"Failed to import python module {moduleName}", ex.WrapAndDispose());
             }
             finally
             {
@@ -524,7 +527,7 @@
                 Debug.Assert(_instance != null, "_instance != null");
 
                 _instance._sysModule.stderr.cur_thread_io = _instance._ioModule.StringIO();
-                var result = _stdErr.getvalue();
+                dynamic result = _stdErr.getvalue();
                 _stdErr.close();
                 _stdErr = _instance._sysModule.stderr.cur_thread_io;
 
@@ -538,7 +541,7 @@
                 Debug.Assert(_instance != null, "_instance != null");
 
                 _instance._sysModule.stdout.cur_thread_io = _instance._ioModule.StringIO();
-                var result = _stdOut.getvalue();
+                dynamic result = _stdOut.getvalue();
                 _stdOut.close();
                 _stdOut = _instance._sysModule.stdout.cur_thread_io;
 
