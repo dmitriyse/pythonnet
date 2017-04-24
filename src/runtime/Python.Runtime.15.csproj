@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <PropertyGroup>
     <TargetFrameworks>net40;netstandard2.0</TargetFrameworks>

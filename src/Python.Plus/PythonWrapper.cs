@@ -73,7 +73,7 @@
 
             Log.Debug(_ => _("Python engine initialization started."));
 
-            string pythonetModuleFileName = Path.Combine(EnvironmentEx.BinPath, "pythonnet.py");
+            string pythonetModuleFileName = Path.Combine(AppContext.BaseDirectory, "pythonnet.py");
 
             // Ensuring that pythonnet.py file exists in the bin directory
             if (!File.Exists(pythonetModuleFileName) || new FileInfo(pythonetModuleFileName).Length == 0)
@@ -90,7 +90,7 @@
             {
                 _sysModule = SafeLoadModuleInternal("sys", false);
                 _ioModule = SafeLoadModuleInternal("io", false, ensureMethods: new[] { "StringIO" });
-                _sysModule.path.append(EnvironmentEx.BinPath);
+                _sysModule.path.append(AppContext.BaseDirectory);
                 _pythonnetModule = SafeLoadModuleInternal("pythonnet", false);
                 _sysModule.stdout = _pythonnetModule.ThreadedDemuxerTextIO(_sysModule.stdout);
                 _sysModule.stderr = _pythonnetModule.ThreadedDemuxerTextIO(_sysModule.stderr);
@@ -326,7 +326,7 @@
             {
                 if (modulePath != null)
                 {
-                    normalizedPath = Path.GetFullPath(Path.Combine(EnvironmentEx.BinPath, modulePath));
+                    normalizedPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, modulePath));
                     requirePathRegister = !_registeredPathes.Contains(normalizedPath);
                 }
 
