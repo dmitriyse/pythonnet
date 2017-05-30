@@ -21,7 +21,7 @@
         [OneTimeSetUp]
         public void Init()
         {
-            var testOutLogger = new TextJsonLogger(new SyncHandler(), TestContext.WriteLine);
+            var testOutLogger = new TextJsonLogger(SyncHandler.Instance, TestContext.WriteLine);
             _wrapper = new PythonWrapper(testOutLogger);
         }
 

@@ -66,7 +66,7 @@
 
             if (logger == null)
             {
-                logger = new ConsoleJsonLogger(new SyncHandler());
+                logger = new ConsoleJsonLogger(SyncHandler.Instance);
             }
 
             Log = new ClassJsonLogger<PythonWrapper>(logger);
@@ -383,7 +383,6 @@
                 }
                 else
                 {
-
                     // PythonException internally captures real python module load error.
                     var pythonException = new PythonException();
                     throw pythonException;
@@ -410,7 +409,9 @@
                     string stdOut = outputFrame.ReadStdOut();
                     string stdErr = outputFrame.ReadStdErr();
 
-                    Log.Warning(moduleName, (_, name) => _($"Failed to load module: {name}").Data(new { PyOut = stdOut, PyErr = stdErr }));
+                    Log.Warning(
+                        moduleName,
+                        (_, name) => _($"Failed to load module: {name}").Data(new { PyOut = stdOut, PyErr = stdErr }));
                 }
 
                 throw new PythonBindingException($"Failed to import python module {moduleName}", ex.WrapAndDispose());
