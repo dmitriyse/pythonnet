@@ -9,6 +9,7 @@
     using System.Threading;
 
     using ClrCoder;
+    using ClrCoder.Diagnostics;
     using ClrCoder.Logging;
     using ClrCoder.Logging.Std;
     using ClrCoder.Threading;
@@ -581,7 +582,13 @@
 
                 if (_parent == null)
                 {
+                    var gilTimer = CodeTimer.Start(3);
                     _pythonNetGIL = Py.GIL();
+                    if (gilTimer.Time > 1.0)
+                    {
+                        // ReSharper disable once PossibleNullReferenceException
+                        _instance.Log.Warning(_=>_("GIL takes too long"));
+                    }
                 }
                 else
                 {
