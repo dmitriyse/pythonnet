@@ -77,7 +77,7 @@
             string pythonetModuleFileName = Path.Combine(AppContext.BaseDirectory, "pythonnet.py");
 
             // Ensuring that pythonnet.py file exists in the bin directory
-            if (!File.Exists(pythonetModuleFileName) || new FileInfo(pythonetModuleFileName).Length == 0)
+            if (!File.Exists(pythonetModuleFileName) || (new FileInfo(pythonetModuleFileName).Length == 0))
             {
                 Assembly assembly = typeof(PythonWrapper).GetTypeInfo().Assembly;
                 using (Stream stream = assembly.GetManifestResourceStream("Python.Net.pythonnet.py"))
@@ -443,12 +443,16 @@
             [NotNull]
             private dynamic _stdErr;
 
+            private int _threadId;
+
             public OutputCapturingFrame(
                 [NotNull] string callerFilePath,
                 [NotNull] string callerMemberName,
                 int callerLineNumber = 0)
             {
                 VerifyEngineAlive();
+
+                _threadId = Thread.CurrentThread.ManagedThreadId;
 
                 CallerFilePath = callerFilePath;
                 CallerMemberName = callerMemberName;
@@ -504,6 +508,9 @@
                         $"Inner python output frame was not disposed. File={CallerFilePath}, Method={CallerMemberName}, Line={CallerLineNumber}\nInner frame:\n{innerLockStr}");
                 }
 
+                Debug.Assert(
+                    _threadId == Thread.CurrentThread.ManagedThreadId,
+                    "Dispose should be called from the same thread.");
                 Debug.Assert(_instance != null, "_instance != null");
                 Debug.Assert(_curGIL != null, "_curGIL != null");
 
@@ -582,12 +589,12 @@
 
                 if (_parent == null)
                 {
-                    var gilTimer = CodeTimer.Start(3);
+                    CodeTimer gilTimer = CodeTimer.Start(3);
                     _pythonNetGIL = Py.GIL();
                     if (gilTimer.Time > 1.0)
                     {
                         // ReSharper disable once PossibleNullReferenceException
-                        _instance.Log.Warning(_=>_("GIL takes too long"));
+                        _instance.Log.Warning(_ => _("GIL takes too long"));
                     }
                 }
                 else
