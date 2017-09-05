@@ -1,0 +1,9 @@
+[patterns]
+** = native
+#**.py = native // Just examples
+#**.txt = native
+#**.vcproj = CRLF
+#Makefile = LF
+**.jpg = BIN
+[repository]
+native = LF
