@@ -1,4 +1,4 @@
-﻿namespace Python.Net
+namespace Python.Net
 {
     using System;
     using System.Collections.Generic;
@@ -65,6 +65,8 @@
                 throw new InvalidOperationException("Python wraper was already initialized.");
             }
 
+            PythonEngine.ImplicitAssemblyLoading += PythonEngine_ImplicitAssemblyLoading;
+
             if (logger == null)
             {
                 logger = new ConsoleJsonLogger(SyncHandler.Instance);
@@ -100,6 +102,11 @@
             }
 
             _multiThreadedPtr = PythonEngine.BeginAllowThreads();
+        }
+
+        private void PythonEngine_ImplicitAssemblyLoading(object sender, ImplicitAssemblyLoadingEventArgs e)
+        {
+            e.SkipAssemblyLoad = true;
         }
 
         /// <summary>
@@ -308,6 +315,7 @@
             }
 
             PythonEngine.Shutdown();
+            PythonEngine.ImplicitAssemblyLoading -= PythonEngine_ImplicitAssemblyLoading;
         }
 
         [NotNull]
