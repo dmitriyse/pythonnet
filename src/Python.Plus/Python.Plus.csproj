@@ -1,15 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.5</TargetFramework>
-    <NetStandardImplicitPackageVersion>1.6.1</NetStandardImplicitPackageVersion>
-    <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netstandard1.5' ">$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <Platforms>AnyCPU</Platforms>
     <RootNamespace>Python.Net</RootNamespace>
+    <VersionPrefix>2.4.0</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="pythonnet.py" />
-    <None Remove="pythonnet.tests.py" />
   </ItemGroup>
 
   <ItemGroup>
